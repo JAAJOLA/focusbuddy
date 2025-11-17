@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Focus Buddy</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: url('background.jpg') no-repeat center center/cover;
+      color: rgb(3, 3, 3);
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 30px;
+      border-radius: 15px;
+      width: 450px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .controls label {
+      display: block;
+      margin: 10px 0;
+      font-weight: 500;
+    }
+
+    input, select {
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      margin-top: 5px;
+      width: 80%;
+    }
+
+    input[type="range"] {
+      width: 80%;
+    }
+
+    button {
+      background: #4e54c8;
+      color: rgb(14, 12, 12);
+      border: none;
+      padding: 12px 18px;
+      margin: 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #6a73ff;
+      transform: scale(1.05);
+    }
+
+    .info {
+      margin-top: 18px;
+    }
+
+    #status {
+      font-size: 1.3rem;
+      margin-top: 5px;
+    }
+
+    #timeLeft {
+      font-size: 2.4rem;
+      margin: 8px 0 6px 0;
+    }
+
+    #suggestion {
+      margin-top: 12px;
+      font-style: italic;
+      opacity: 0.9;
+    }
+
+    #sessionsCount {
+      margin-top: 4px;
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Focus Buddy</h1>
+    <p>Focus timer with music and brain-recharge break ideas.</p>
+
+    <div class="controls">
+      <label>
+        Focus (min):
+        <input type="number" id="focusMinutes" value="25" min="1">
+      </label>
+
+      <label>
+        Break (min):
+        <input type="number" id="breakMinutes" value="5" min="1">
+      </label>
+
+      <label>
+        Music:
+        <select id="musicSelect">
+          <option value="Dryer.mp3">Dryer</option>
+          <option value="Rain.mp3">Rain & Thunder</option>
+          <option value="White-Noise.mp3">White-Noise</option>
+          <option value="Ocean.mp3">Ocean</option>
+          <option value="Heater.mp3">Heater</option>
+        </select>
+      </label>
+
+      <label>
+        Volume:
+        <input type="range" id="volumeControl" min="0" max="100" value="70">
+      </label>
+
+      <button id="startBtn">Start</button>
+      <button id="stopBtn">Stop</button>
+    </div>
+
+    <div class="info">
+      <div id="status">Status: Idle</div>
+      <div id="timeLeft">00:00</div>
+      <div id="sessionsCount">
+        Focus sessions completed today: <span id="sessionsNumber">0</span>
+      </div>
+      <div id="suggestion"></div>
+    </div>
+
+    <!-- Background focus music -->
+    <audio id="focusMusic" src="Dryer.mp3" loop></audio>
+    <!-- End-of-focus notification sound -->
+    <audio id="endSound" src="ding.mp3"></audio>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const timeLeftEl = document.getElementById('timeLeft');
+    const suggestionEl = document.getElementById('suggestion');
+    const sessionsNumberEl = document.getElementById('sessionsNumber');
+
+    const focusInput = document.getElementById('focusMinutes');
+    const breakInput = document.getElementById('breakMinutes');
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    const musicSelect = document.getElementById('musicSelect');
+    const volumeControl = document.getElementById('volumeControl');
+
+    const focusMusic = document.getElementById('focusMusic');
+    const endSound = document.getElementById('endSound');
+
+    const breakSuggestions = [
+      "Stand up and stretch your neck, shoulders, and back for 1–2 minutes.",
+      "Close your eyes and take 10 slow, deep breaths.",
+      "Look out of the window and focus on something far away for 30 seconds.",
+      "Walk around your room or hallway for 2 minutes.",
+      "Drink a glass of water slowly and away from your screen.",
+      "Do 10 bodyweight squats or 10 calf raises.",
+      "Write down one thing you accomplished this session.",
+      "Sit with your eyes closed and notice 5 sounds you can hear.",
+      "Gently massage your temples and jaw for 30 seconds.",
+      "Look at something green (a plant, picture, or outside) to relax your eyes."
+    ];
+
+    let mode = 'idle';      // 'idle' | 'focus' | 'break'
+    let remainingSeconds = 0;
+    let timerId = null;
+    let sessionsCompleted = 0;
+    let isPaused = false;
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function pickRandomSuggestion() {
+      const i = Math.floor(Math.random() * breakSuggestions.length);
+      return breakSuggestions[i];
+    }
+
+    function updateMusicSource() {
+      const newSrc = musicSelect.value;
+      const wasPlaying = (mode === 'focus' && !focusMusic.paused && !isPaused);
+
+      focusMusic.pause();
+      focusMusic.currentTime = 0;
+      focusMusic.src = newSrc;
+      focusMusic.load();
+
+      if (wasPlaying) {
+        focusMusic.play().catch(err => {
+          console.log("Browser blocked autoplay after changing track:", err);
+        });
+      }
+    }
+
+    function updateVolume() {
+      const vol = volumeControl.value / 100;
+      focusMusic.volume = vol;
+      endSound.volume = vol;
+    }
+
+    function startTimer() {
+      // If currently idle → start a new focus session
+      if (mode === 'idle') {
+        const focusMinutes = parseInt(focusInput.value, 10);
+        const breakMinutes = parseInt(breakInput.value, 10);
+
+        if (isNaN(focusMinutes) || isNaN(breakMinutes) || focusMinutes <= 0 || breakMinutes <= 0) {
+          alert("Please enter valid positive numbers for focus and break times.");
+          return;
+        }
+
+        if (timerId) {
+          clearTimeout(timerId);
+        }
+
+        mode = 'focus';
+        isPaused = false;
+        remainingSeconds = focusMinutes * 60;
+        suggestionEl.textContent = "";
+
+        updateMusicSource();
+        playFocusMusic(true);
+        updateUI();
+        tick();
+
+        startBtn.textContent = 'Pause';
+        return;
+      }
+
+      // If not idle → toggle pause / resume
+      if (!isPaused) {
+        // Pause
+        isPaused = true;
+        if (timerId) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+        if (mode === 'focus') {
+          playFocusMusic(false);
+        }
+        statusEl.textContent += " (Paused)";
+        startBtn.textContent = 'Resume';
+      } else {
+        // Resume
+        isPaused = false;
+        if (mode === 'focus') {
+          playFocusMusic(true);
+        }
+        updateUI();
+        tick();
+        startBtn.textContent = 'Pause';
+      }
+    }
+
+    function stopTimer() {
+      mode = 'idle';
+      isPaused = false;
+      remainingSeconds = 0;
+      if (timerId) clearTimeout(timerId);
+      playFocusMusic(false);
+      statusEl.textContent = "Status: Idle";
+      timeLeftEl.textContent = "00:00";
+      suggestionEl.textContent = "";
+      startBtn.textContent = 'Start';
+    }
+
+    function playFocusMusic(shouldPlay) {
+      if (shouldPlay) {
+        focusMusic.play().catch(err => {
+          console.log("Autoplay blocked. User may need to press play once:", err);
+        });
+      } else {
+        focusMusic.pause();
+        focusMusic.currentTime = 0;
+      }
+    }
+
+    function tick() {
+      if (mode === 'idle' || isPaused) {
+        return;
+      }
+
+      timeLeftEl.textContent = formatTime(remainingSeconds);
+
+      if (remainingSeconds <= 0) {
+        if (mode === 'focus') {
+          // Focus finished → play end sound and go to break
+          sessionsCompleted += 1;
+          sessionsNumberEl.textContent = sessionsCompleted.toString();
+
+          endSound.currentTime = 0;
+          endSound.play().catch(err => {
+            console.log("End sound blocked until first user interaction:", err);
+          });
+
+          mode = 'break';
+          const breakMinutes = parseInt(breakInput.value, 10);
+          remainingSeconds = breakMinutes * 60;
+
+          playFocusMusic(false);
+          suggestionEl.textContent = pickRandomSuggestion();
+        } else if (mode === 'break') {
+          // Break finished → back to focus
+          mode = 'focus';
+          const focusMinutes = parseInt(focusInput.value, 10);
+          remainingSeconds = focusMinutes * 60;
+
+          suggestionEl.textContent = "";
+          playFocusMusic(true);
+        }
+        updateUI();
+      } else {
+        remainingSeconds--;
+      }
+
+      if (mode !== 'idle' && !isPaused) {
+        timerId = setTimeout(tick, 1000);
+      }
+    }
+
+    function updateUI() {
+      if (mode === 'focus') {
+        statusEl.textContent = "Status: FOCUS 🎯";
+      } else if (mode === 'break') {
+        statusEl.textContent = "Status: BREAK ☕";
+      } else {
+        statusEl.textContent = "Status: Idle";
+      }
+      timeLeftEl.textContent = formatTime(remainingSeconds);
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startTimer);
+    stopBtn.addEventListener('click', stopTimer);
+    musicSelect.addEventListener('change', updateMusicSource);
+    volumeControl.addEventListener('input', updateVolume);
+
+    // Set initial volume
+    updateVolume();
+  </script>
+
+</body>
+</html>

@@ -11,19 +11,42 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #111 url('background.jpg') no-repeat center center/cover;
-      color: rgb(3, 3, 3);
+      background-color: #111; /* actual images handled by bg layers */
+      overflow: hidden;
+    }
+
+    /* Fullscreen cross-fading background layers */
+    .bg-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      transition: opacity 0.8s ease;
+      z-index: -1;
+      opacity: 0;
+      background-color: #111;
+    }
+    #bg1 {
+      opacity: 1;
+      background-image: url('background.jpg'); /* initial/default */
+    }
+    #bg2 {
+      opacity: 0;
     }
 
     .container {
       position: relative;
-      background: rgba(83, 76, 76, 0.55);
+      background: rgba(255,255,255,0.25);
       padding: 30px;
       border-radius: 15px;
       width: 450px;
       text-align: center;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-      backdrop-filter: blur(3px);
+      backdrop-filter: blur(2px);
     }
 
     h1 { margin-bottom: 10px; }
@@ -66,21 +89,23 @@
     #timeLeft { font-size: 2.4rem; margin: 8px 0 6px 0; }
     #suggestion { margin-top: 12px; font-style: italic; opacity: .9; }
     #sessionsCount { margin-top:4px; font-size:1rem; opacity:.8; }
+    #nowPlaying { margin-top:8px; font-size:1rem; opacity:.8; }
 
-    /* — Settings UI — */
+    /* Settings UI */
     .settings-button {
       position: absolute;
       top: 12px;
       right: 12px;
-      background: rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.95);
       border: none;
       font-size: 22px;
       padding: 6px 10px;
       border-radius: 10px;
       cursor: pointer;
-      backdrop-filter: blur(5px);
     }
-    .settings-button:hover { background: rgba(255,255,255,0.4); }
+    .settings-button:hover {
+      background: rgba(240,240,240,1);
+    }
 
     .settings-panel {
       position: absolute;
@@ -102,9 +127,10 @@
       display:flex;
       justify-content:space-between;
       margin:6px 0;
-      background:rgba(255,255,255,0.2);
+      background:rgba(0,0,0,0.05);
       padding:5px 10px;
       border-radius:6px;
+      font-size: 0.9rem;
     }
 
     .small-btn, .close-btn {
@@ -115,13 +141,23 @@
       margin-top:15px;
       border-radius:10px;
       cursor:pointer;
+      font-size: 0.95rem;
     }
     .small-btn:hover, .close-btn:hover { background:#6a73ff; }
 
-    #nowPlaying { margin-top:8px; font-size:1rem; opacity:.8; }
+    .delete-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
+
+  <!-- cross-fade background layers -->
+  <div id="bg1" class="bg-layer"></div>
+  <div id="bg2" class="bg-layer"></div>
 
   <div class="container">
     <button id="settingsBtn" class="settings-button">⚙️</button>
@@ -147,6 +183,8 @@
           <option value="White-Noise.mp3">White-Noise</option>
           <option value="Ocean.mp3">Ocean</option>
           <option value="Heater.mp3">Heater</option>
+          <option value="india.mp3">India</option>
+          <option value="piano.mp3">Piano</option>
         </select>
       </label>
 
@@ -184,6 +222,7 @@
       <ul id="customSoundList"></ul>
 
       <button id="clearCustomSounds" class="small-btn">Clear Uploaded Sounds</button>
+      <br>
       <button id="closeSettings" class="close-btn">Close</button>
     </div>
   </div>
@@ -213,7 +252,11 @@ const intervalLabel = document.getElementById("intervalLabel");
 const customSoundList = document.getElementById("customSoundList");
 const clearCustomSounds = document.getElementById("clearCustomSounds");
 
-let switchIntervalSeconds = switchInterval.value;
+const bg1 = document.getElementById('bg1');
+const bg2 = document.getElementById('bg2');
+let currentBgLayer = 1;
+
+let switchIntervalSeconds = parseInt(switchInterval.value, 10);
 intervalLabel.textContent = switchIntervalSeconds + "s";
 
 const focusMusic = document.getElementById('focusMusic');
@@ -232,18 +275,37 @@ const soundFiles = [
   "rain.mp3",
   "White-Noise.mp3",
   "Ocean.mp3",
-  "Heater.mp3"
+  "Heater.mp3",
+  "india.mp3",
+  "piano.mp3"
 ];
 
+// Built-in sound → background image mapping
+const soundImageMap = {
+  "Dryer.mp3": "Dryer.jfif",
+  "rain.mp3": "rain.jfif",
+  "White-Noise.mp3": "White-Noise.jfif",
+  "Ocean.mp3": "Ocean.jpg",
+  "Heater.mp3": "Heater.jfif",
+  "india.mp3": "india.jpg",
+  "piano.mp3": "piano.jpg"
+};
+
 let customRandomSounds = [];
-let mode = 'idle';
+let mode = 'idle';  // idle | focus | break
 let timerId = null;
 let randomSoundTimerId = null;
 let remainingSeconds = 0;
 let sessionsCompleted = 0;
 let isPaused = false;
 
-/* ---------------- MONEY FUNCTIONS ---------------- */
+/* ---------- Helpers ---------- */
+
+// Pretty name: remove extension, replace -/_ with spaces, capitalize words
+function cleanName(filename) {
+  const base = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+  return base.replace(/\b\w/g, ch => ch.toUpperCase());
+}
 
 function formatTime(seconds) {
   const m = Math.floor(seconds/60).toString().padStart(2,'0');
@@ -251,8 +313,50 @@ function formatTime(seconds) {
   return `${m}:${s}`;
 }
 
-function updateNowPlaying(src) {
-  nowPlayingEl.textContent = "Now Playing: " + src.split("/").pop();
+// Cross-fade background images using two layers
+function setBackground(imagePath) {
+  const show = (currentBgLayer === 1) ? bg2 : bg1;
+  const hide = (currentBgLayer === 1) ? bg1 : bg2;
+
+  show.style.backgroundImage = `url('${imagePath}')`;
+  show.style.opacity = '1';
+  hide.style.opacity = '0';
+
+  currentBgLayer = (currentBgLayer === 1) ? 2 : 1;
+}
+
+// Set background + Now Playing according to rules
+function updateSoundVisuals(src) {
+  // Idle / stop
+  if (!src) {
+    nowPlayingEl.textContent = "Now Playing: None";
+    setBackground('background.jpg');
+    return;
+  }
+
+  const file = src.split("/").pop();
+  const niceName = cleanName(file);
+  const isRandom = (musicSelect.value === "random");
+  const isCustom = src.startsWith("blob:");
+
+  // Random mode OR custom upload → always use background.jpg
+  if (isRandom || isCustom) {
+    nowPlayingEl.textContent = `Now Playing: ${niceName}`;
+    setBackground('background.jpg');
+    return;
+  }
+
+  // Built-in sound with specific image
+  if (soundImageMap[file]) {
+    const img = soundImageMap[file];
+    nowPlayingEl.textContent = "Now Playing: " + niceName;
+    setBackground(img);
+    return;
+  }
+
+  // Fallback
+  nowPlayingEl.textContent = "Now Playing: " + niceName;
+  setBackground('background.jpg');
 }
 
 function playFocusMusic(shouldPlay) {
@@ -264,9 +368,14 @@ function playFocusMusic(shouldPlay) {
   }
 }
 
-/* -------------------- RANDOM SOUND CYCLE -------------------- */
+/* ---------- Random Sound Cycle ---------- */
 
-function clearRandomSoundTimer(){ if(randomSoundTimerId) clearTimeout(randomSoundTimerId); }
+function clearRandomSoundTimer(){
+  if(randomSoundTimerId) {
+    clearTimeout(randomSoundTimerId);
+    randomSoundTimerId = null;
+  }
+}
 
 function startRandomSoundCycle() {
   clearRandomSoundTimer();
@@ -275,6 +384,8 @@ function startRandomSoundCycle() {
     if (mode !== 'focus' || isPaused) return;
 
     const allSounds = soundFiles.concat(customRandomSounds);
+    if (allSounds.length === 0) return;
+
     const idx = Math.floor(Math.random()*allSounds.length);
     const newSrc = allSounds[idx];
 
@@ -283,7 +394,7 @@ function startRandomSoundCycle() {
     focusMusic.load();
     focusMusic.play().catch(()=>{});
 
-    updateNowPlaying(newSrc);
+    updateSoundVisuals(newSrc); // will show actual track name, but keep background.jpg
 
     randomSoundTimerId = setTimeout(cycle, switchIntervalSeconds*1000);
   }
@@ -291,17 +402,30 @@ function startRandomSoundCycle() {
   cycle();
 }
 
-/* ---------------- CUSTOM SOUND UPLOAD ---------------- */
+/* ---------- Custom Sound Upload ---------- */
 
 musicSelect.addEventListener("change", () => {
-  if (musicSelect.value === "upload") {
+  const value = musicSelect.value;
+
+  if (value === "upload") {
     customSoundInput.click();
-  } else if (musicSelect.value === "random" && mode === "focus") {
-    startRandomSoundCycle();
-  } else {
-    clearRandomSoundTimer();
-    focusMusic.src = musicSelect.value;
-    updateNowPlaying(musicSelect.value);
+    return;
+  }
+
+  if (value === "random") {
+    // switching to random → show default background, wait for cycle pick
+    updateSoundVisuals(null);
+    if (mode === "focus" && !isPaused) {
+      startRandomSoundCycle();
+    }
+    return;
+  }
+
+  clearRandomSoundTimer();
+  focusMusic.src = value;
+  focusMusic.load();
+  updateSoundVisuals(value);
+  if (mode === "focus" && !isPaused) {
     playFocusMusic(true);
   }
 });
@@ -322,8 +446,11 @@ customSoundInput.addEventListener("change", e => {
   musicSelect.value = url;
 
   focusMusic.src = url;
-  updateNowPlaying(url);
-  playFocusMusic(true);
+  focusMusic.load();
+  updateSoundVisuals(url); // treated as custom → background.jpg
+  if (mode === "focus") {
+    playFocusMusic(true);
+  }
 });
 
 function addSoundToList(name, url) {
@@ -346,20 +473,33 @@ clearCustomSounds.addEventListener("click",()=>{
   [...customSoundList.children].forEach(li=>li.remove());
 });
 
-/* ------------------------------ TIMER ------------------------------ */
+/* ---------- Timer ---------- */
 
 function startTimer() {
   if (mode === 'idle') {
+    const focusMins = parseInt(focusInput.value, 10);
+    const breakMins = parseInt(breakInput.value, 10);
+    if (isNaN(focusMins) || isNaN(breakMins) || focusMins <= 0 || breakMins <= 0) {
+      alert("Enter valid positive numbers for focus and break.");
+      return;
+    }
+
     mode = "focus";
     isPaused = false;
-    remainingSeconds = parseInt(focusInput.value)*60;
+    remainingSeconds = focusMins * 60;
     suggestionEl.textContent = "";
     const selection = musicSelect.value;
 
-    if (selection === "random") startRandomSoundCycle();
-    else playFocusMusic(true);
+    if (selection === "random") {
+      updateSoundVisuals(null);
+      startRandomSoundCycle();
+    } else if (selection !== "upload") {
+      focusMusic.src = selection;
+      focusMusic.load();
+      playFocusMusic(true);
+      updateSoundVisuals(selection);
+    }
 
-    updateNowPlaying(selection);
     updateUI();
     tick();
     startBtn.textContent = "Pause";
@@ -377,8 +517,11 @@ function startTimer() {
   // resume
   else {
     isPaused = false;
-    if (musicSelect.value === "random") startRandomSoundCycle();
-    else playFocusMusic(true);
+    if (musicSelect.value === "random") {
+      startRandomSoundCycle();
+    } else {
+      playFocusMusic(true);
+    }
     updateUI();
     tick();
     startBtn.textContent = "Pause";
@@ -389,13 +532,13 @@ function stopTimer(){
   mode="idle";
   isPaused=false;
   remainingSeconds=0;
-  clearTimeout(timerId);
+  if (timerId) clearTimeout(timerId);
   clearRandomSoundTimer();
   playFocusMusic(false);
   statusEl.textContent="Status: Idle";
   timeLeftEl.textContent="00:00";
   suggestionEl.textContent="";
-  nowPlayingEl.textContent="Now Playing: None";
+  updateSoundVisuals(null);
   startBtn.textContent="Start";
 }
 
@@ -411,41 +554,58 @@ function tick() {
       endSound.currentTime=0;
       endSound.play().catch(()=>{});
       mode="break";
-      remainingSeconds=parseInt(breakInput.value)*60;
+      remainingSeconds=parseInt(breakInput.value, 10)*60;
       clearRandomSoundTimer();
       playFocusMusic(false);
       suggestionEl.textContent="Break: " + breakSuggestions[Math.floor(Math.random()*breakSuggestions.length)];
     }
     else {
       mode="focus";
-      remainingSeconds=parseInt(focusInput.value)*60;
+      remainingSeconds=parseInt(focusInput.value, 10)*60;
       suggestionEl.textContent="";
-      if (musicSelect.value==="random") startRandomSoundCycle();
-      else playFocusMusic(true);
+      if (musicSelect.value==="random") {
+        updateSoundVisuals(null);
+        startRandomSoundCycle();
+      } else {
+        const selection = musicSelect.value;
+        if (selection && selection !== "upload") {
+          focusMusic.src = selection;
+          focusMusic.load();
+          playFocusMusic(true);
+          updateSoundVisuals(selection);
+        }
+      }
     }
     updateUI();
-  } else remainingSeconds--;
+  } else {
+    remainingSeconds--;
+  }
 
   timerId = setTimeout(tick,1000);
 }
 
 function updateUI(){
-  statusEl.textContent = mode==="focus" ? "Status: FOCUS 🎯" :
-                         mode==="break" ? "Status: BREAK ☕" : "Status: Idle";
+  if (mode === "focus") {
+    statusEl.textContent = "Status: FOCUS 🎯";
+  } else if (mode === "break") {
+    statusEl.textContent = "Status: BREAK ☕";
+  } else {
+    statusEl.textContent = "Status: Idle";
+  }
   timeLeftEl.textContent = formatTime(remainingSeconds);
 }
 
-/* ---------------- SETTINGS PANEL ---------------- */
+/* ---------- Settings Panel & Interval Slider ---------- */
 
 settingsBtn.addEventListener("click", ()=> settingsPanel.classList.remove("hidden"));
 closeSettings.addEventListener("click", ()=> settingsPanel.classList.add("hidden"));
 
 switchInterval.addEventListener("input",()=>{
-  switchIntervalSeconds = switchInterval.value;
+  switchIntervalSeconds = parseInt(switchInterval.value, 10);
   intervalLabel.textContent = switchIntervalSeconds+"s";
 });
 
-/* ---------------- LOCAL STORAGE ---------------- */
+/* ---------- Local Storage for Custom Sounds (UI only) ---------- */
 
 function saveCustomSounds(){
   localStorage.setItem("customSounds", JSON.stringify(customRandomSounds));
@@ -462,9 +622,8 @@ function loadCustomSounds(){
     musicSelect.appendChild(opt);
   });
 }
-loadCustomSounds();
 
-/* ---------------- EVENT LISTENERS ---------------- */
+/* ---------- Init ---------- */
 
 startBtn.addEventListener("click", startTimer);
 stopBtn.addEventListener("click", stopTimer);
@@ -475,8 +634,14 @@ volumeControl.addEventListener("input", ()=>{
   endSound.volume = v;
 });
 volumeControl.dispatchEvent(new Event("input"));
+
+loadCustomSounds();
+updateSoundVisuals(null); // idle → background.jpg (already set in CSS but keeps logic consistent)
 </script>
 
 </body>
 </html>
+
+
+
 

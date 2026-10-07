@@ -7,7 +7,6 @@
   <title>Focus Buddy</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
-
 <body>
   <div id="bg1" class="bg-layer"></div>
   <div id="bg2" class="bg-layer"></div>
@@ -15,7 +14,6 @@
 
   <main class="app-shell">
     <section class="app-card" aria-label="Focus Buddy timer">
-
       <div class="timer-panel">
         <div class="brand-row">
           <div class="brand">
@@ -57,12 +55,15 @@
               </div>
             </div>
 
-            <div class="stat-card now-playing-card">
+            <div
+              id="nowPlayingCard"
+              class="stat-card now-playing-card"
+              role="button"
+              tabindex="0"
+              aria-label="Change current ambience"
+            >
               <div class="stat-label">Now playing</div>
               <div id="nowPlaying" class="stat-value" title="None">None</div>
-              <button id="trackActionBtn" class="track-action-btn" type="button" disabled>
-                Change
-              </button>
             </div>
           </div>
         </div>
@@ -99,7 +100,6 @@
             <option value="random">🎲 Random Ambient</option>
             <option value="upload">＋ Upload Custom Sound</option>
           </select>
-
           <input type="file" id="customSoundInput" accept="audio/*" hidden />
         </div>
 
@@ -152,7 +152,15 @@
           <span>Random switch interval</span>
           <span id="intervalLabel">120s</span>
         </div>
-        <input type="range" id="switchInterval" min="30" max="600" step="10" value="120" />
+
+        <input
+          type="range"
+          id="switchInterval"
+          min="30"
+          max="600"
+          step="10"
+          value="120"
+        />
       </div>
 
       <h3>Uploaded custom sounds</h3>

@@ -5,20 +5,17 @@ const timeLeftEl = $("timeLeft");
 const suggestionEl = $("suggestion");
 const sessionsNumberEl = $("sessionsNumber");
 const nowPlayingEl = $("nowPlaying");
+const nowPlayingCard = $("nowPlayingCard");
 const timerRing = $("timerRing");
-const trackActionBtn = $("trackActionBtn");
-
 const focusInput = $("focusMinutes");
 const breakInput = $("breakMinutes");
 const startBtn = $("startBtn");
 const stopBtn = $("stopBtn");
-
 const musicSelect = $("musicSelect");
 const volumeControl = $("volumeControl");
 const volumeLabel = $("volumeLabel");
 const customSoundInput = $("customSoundInput");
 const uploadSoundBtn = $("uploadSoundBtn");
-
 const settingsBtn = $("settingsBtn");
 const openSoundSettings = $("openSoundSettings");
 const settingsBackdrop = $("settingsBackdrop");
@@ -28,7 +25,6 @@ const switchInterval = $("switchInterval");
 const intervalLabel = $("intervalLabel");
 const customSoundList = $("customSoundList");
 const clearCustomSounds = $("clearCustomSounds");
-
 const toast = $("toast");
 const bg1 = $("bg1");
 const bg2 = $("bg2");
@@ -114,11 +110,9 @@ let remainingSeconds = 40 * 60;
 let sessionTotalSeconds = 40 * 60;
 let isPaused = false;
 let currentAmbientIndex = -1;
-
 let randomSoundTimerId = null;
 let randomSwitchStartedAt = null;
 let randomSwitchRemainingMs = null;
-
 let toastTimer = null;
 
 let sessionsCompleted = Number(
@@ -139,21 +133,18 @@ switchInterval.value = String(
 switchIntervalSeconds = Number(switchInterval.value);
 intervalLabel.textContent = `${switchIntervalSeconds}s`;
 sessionsNumberEl.textContent = sessionsCompleted;
-
 focusMusic.loop = true;
 
 function formatTime(seconds) {
   const safeSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(safeSeconds / 60).toString().padStart(2, "0");
   const secs = (safeSeconds % 60).toString().padStart(2, "0");
-
   return `${minutes}:${secs}`;
 }
 
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
-
   clearTimeout(toastTimer);
 
   toastTimer = setTimeout(() => {
@@ -255,7 +246,6 @@ function playSelectedManualAmbient() {
   if (!custom) return;
 
   currentAmbientIndex = -1;
-
   focusMusic.pause();
   focusMusic.src = custom.url;
   focusMusic.load();
@@ -280,18 +270,12 @@ function playNextAmbient() {
     currentIndex = currentAmbientIndex;
   }
 
-  if (currentIndex < 0) {
-    currentIndex = -1;
-  }
-
   const nextIndex = (currentIndex + 1) % ambientSounds.length;
   const nextAmbient = ambientSounds[nextIndex];
 
   musicSelect.value = nextAmbient.audio;
-
   clearRandomSoundTimer();
   playAmbientByIndex(nextIndex);
-  updateTrackActionButton();
 }
 
 function chooseRandomAmbientIndex() {
@@ -339,10 +323,7 @@ function switchRandomAmbient() {
   if (index === -1) return;
 
   playAmbientByIndex(index);
-
-  scheduleRandomSwitch(
-    switchIntervalSeconds * 1000
-  );
+  scheduleRandomSwitch(switchIntervalSeconds * 1000);
 }
 
 function startRandomSoundCycle() {
@@ -353,10 +334,7 @@ function startRandomSoundCycle() {
   if (index === -1) return;
 
   playAmbientByIndex(index);
-
-  scheduleRandomSwitch(
-    switchIntervalSeconds * 1000
-  );
+  scheduleRandomSwitch(switchIntervalSeconds * 1000);
 }
 
 function pauseRandomSwitchTimer() {
@@ -396,28 +374,22 @@ function resumeRandomSwitchTimer() {
   scheduleRandomSwitch(remaining);
 }
 
-function updateTrackActionButton() {
-  if (mode !== "focus") {
-    trackActionBtn.disabled = true;
-    trackActionBtn.textContent = "Change";
-    return;
-  }
-
-  trackActionBtn.disabled = false;
-
-  trackActionBtn.textContent =
-    musicSelect.value === "random"
-      ? "Switch"
-      : "Change";
-}
-
-trackActionBtn.addEventListener("click", () => {
+function handleNowPlayingClick() {
   if (mode !== "focus") return;
 
   if (musicSelect.value === "random") {
     switchRandomAmbient();
   } else {
     playNextAmbient();
+  }
+}
+
+nowPlayingCard.addEventListener("click", handleNowPlayingClick);
+
+nowPlayingCard.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    handleNowPlayingClick();
   }
 });
 
@@ -457,7 +429,6 @@ function addCustomOption(item) {
   option.value = item.url;
   option.dataset.customId = item.id;
   option.textContent = `📌 ${item.name}`;
-
   musicSelect.appendChild(option);
 }
 
@@ -494,7 +465,6 @@ function removeCustomSound(id) {
   );
 
   syncCustomList();
-  updateTrackActionButton();
   showToast("Custom sound removed.");
 }
 
@@ -536,7 +506,6 @@ customSoundInput.addEventListener("change", (event) => {
     playFocusMusic();
   }
 
-  updateTrackActionButton();
   showToast(`${item.name} added.`);
 });
 
@@ -546,12 +515,10 @@ musicSelect.addEventListener("change", () => {
   if (value === "upload") {
     musicSelect.value = "random";
     openUploadDialog();
-    updateTrackActionButton();
     return;
   }
 
   clearRandomSoundTimer();
-
   randomSwitchRemainingMs = null;
   randomSwitchStartedAt = null;
 
@@ -572,12 +539,10 @@ musicSelect.addEventListener("change", () => {
       setDefaultBackground();
     }
 
-    updateTrackActionButton();
     return;
   }
 
   playSelectedManualAmbient();
-  updateTrackActionButton();
 });
 
 clearCustomSounds.addEventListener("click", () => {
@@ -592,7 +557,6 @@ clearCustomSounds.addEventListener("click", () => {
     .forEach((option) => option.remove());
 
   syncCustomList();
-
   showToast("Uploaded sounds cleared.");
 });
 
@@ -670,8 +634,6 @@ function updateUI() {
     mode === "idle"
       ? "Focus Buddy"
       : `${formatTime(remainingSeconds)} · ${mode}`;
-
-  updateTrackActionButton();
 }
 
 function startSelectedMusic() {
@@ -804,6 +766,10 @@ function switchMode() {
       remainingSeconds;
 
     clearRandomSoundTimer();
+
+    randomSwitchRemainingMs = null;
+    randomSwitchStartedAt = null;
+
     stopAndRewindMusic();
 
     setNowPlaying("None");
@@ -882,22 +848,19 @@ function closeSettingsModal() {
 
 startBtn.addEventListener("click", toggleTimer);
 stopBtn.addEventListener("click", resetTimer);
-
 focusInput.addEventListener("input", updateIdlePreview);
 breakInput.addEventListener("input", updateIdlePreview);
-
 settingsBtn.addEventListener("click", openSettings);
 openSoundSettings.addEventListener("click", openSettings);
 closeSettings.addEventListener("click", closeSettingsModal);
 doneSettings.addEventListener("click", closeSettingsModal);
+uploadSoundBtn.addEventListener("click", openUploadDialog);
 
 settingsBackdrop.addEventListener("click", (event) => {
   if (event.target === settingsBackdrop) {
     closeSettingsModal();
   }
 });
-
-uploadSoundBtn.addEventListener("click", openUploadDialog);
 
 switchInterval.addEventListener("input", () => {
   switchIntervalSeconds =
@@ -933,17 +896,13 @@ switchInterval.addEventListener("input", () => {
 });
 
 volumeControl.addEventListener("input", () => {
-  const value =
-    Number(volumeControl.value);
-
-  const volume =
-    value / 100;
+  const value = Number(volumeControl.value);
+  const volume = value / 100;
 
   focusMusic.volume = volume;
   endSound.volume = volume;
 
-  volumeLabel.textContent =
-    `${value}%`;
+  volumeLabel.textContent = `${value}%`;
 
   localStorage.setItem(
     "focusBuddyVolume",

@@ -1,59 +1,36 @@
 # Focus Buddy
 
-Project structure:
+Focus Buddy is a personal focus timer built around a Pomodoro-style workflow and inspired by the focused listening experience of Brain.fm.
 
-```text
-focusbuddy_split/
-├── index.html
-├── css/
-│   └── style.css
-├── js/
-│   └── app.js
-├── audio/
-├── images/
-└── assets/
-```
+The goal is to make study, coding, and work sessions easier to stay engaged with by combining timed focus sessions, intentional breaks, ambient audio, and changing visual backgrounds.
 
-## Add a new built-in ambience
+## How it works
 
-1. Put the audio file in `audio/`.
-2. Put the matching background image in `images/`.
-3. Open `js/app.js`.
-4. Add one object to `ambientSounds`:
+Focus Buddy follows a simple Pomodoro-style cycle:
 
-```js
-{
-  name: "Forest",
-  audio: "audio/forest.mp3",
-  image: "images/forest.jpg"
-}
-```
+- Focus for a set amount of time
+- Take a short break
+- Repeat the cycle
+- Track completed focus sessions
 
-The app will automatically add it to the dropdown, include it in Random Ambient,
-and switch to the matching image when that sound is selected.
+During focus sessions, ambient audio plays in the background. Each sound can have its own matching visual background, and Random Ambient mode can automatically rotate through different sound and background combinations.
 
-## Existing assets
+## Features
 
-Move your current files into these folders:
+- Pomodoro-style focus and break cycles
+- Custom focus and break durations
+- Ambient focus audio
+- Random ambience rotation
+- Background images matched to sounds
+- Automatic focus-to-break switching
+- Adjustable volume
+- Adjustable sound rotation interval
+- Completed-session counter
+- Custom audio uploads
+- Pause, resume, and reset controls
 
-### audio/
-- Dryer.mp3
-- rain.mp3
-- White-Noise.mp3
-- Ocean.mp3
-- Heater.mp3
-- india.mp3
-- piano.mp3
+## Purpose
 
-### images/
-- background.jpg
-- Dryer.jfif
-- rain.jfif
-- White-Noise.jfif
-- Ocean.jpg
-- Heater.jfif
-- india.jpg
-- piano.jfif
+I built Focus Buddy mainly for my own focus time. It is designed to create a calm, immersive environment for studying, coding, research, and other deep-work sessions.
 
-### assets/
-- ding.mp3
+The experience is inspired by Brain.fm, especially the idea of combining structured focus time with continuous background audio, while keeping the implementation simple and customizable.

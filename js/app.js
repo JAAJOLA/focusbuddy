@@ -480,7 +480,7 @@ function renderAudioLibrary() {
 
     const meta = document.createElement("div");
     meta.className = "audio-item-meta";
-    meta.textContent = `Default sound ${index + 1}`;
+    // meta.textContent = `Default sound ${index + 1}`;
 
     text.append(name, meta);
     row.appendChild(text);

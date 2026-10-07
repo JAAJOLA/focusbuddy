@@ -106,6 +106,7 @@ let currentBgLayer = 1;
 let customSounds = [];
 let mode = "idle";
 let timerId = null;
+let timerEndTime = null;
 let remainingSeconds = 40 * 60;
 let sessionTotalSeconds = 40 * 60;
 let isPaused = false;
@@ -246,6 +247,7 @@ function playSelectedManualAmbient() {
   if (!custom) return;
 
   currentAmbientIndex = -1;
+
   focusMusic.pause();
   focusMusic.src = custom.url;
   focusMusic.load();
@@ -659,6 +661,10 @@ function beginFocusSession() {
   sessionTotalSeconds =
     remainingSeconds;
 
+  timerEndTime =
+    Date.now() +
+    remainingSeconds * 1000;
+
   suggestionEl.textContent =
     "Stay with one task until the timer ends.";
 
@@ -678,8 +684,18 @@ function toggleTimer() {
   if (!isPaused) {
     isPaused = true;
 
-    clearTimeout(timerId);
+    if (timerEndTime !== null) {
+      remainingSeconds = Math.max(
+        0,
+        Math.ceil(
+          (timerEndTime - Date.now()) / 1000
+        )
+      );
+    }
+
+    clearInterval(timerId);
     timerId = null;
+    timerEndTime = null;
 
     pauseFocusMusic();
 
@@ -695,6 +711,10 @@ function toggleTimer() {
   }
 
   isPaused = false;
+
+  timerEndTime =
+    Date.now() +
+    remainingSeconds * 1000;
 
   if (mode === "focus") {
     playFocusMusic();
@@ -712,8 +732,9 @@ function resetTimer() {
   mode = "idle";
   isPaused = false;
 
-  clearTimeout(timerId);
+  clearInterval(timerId);
   timerId = null;
+  timerEndTime = null;
 
   clearRandomSoundTimer();
 
@@ -765,6 +786,10 @@ function switchMode() {
     sessionTotalSeconds =
       remainingSeconds;
 
+    timerEndTime =
+      Date.now() +
+      remainingSeconds * 1000;
+
     clearRandomSoundTimer();
 
     randomSwitchRemainingMs = null;
@@ -790,6 +815,10 @@ function switchMode() {
     sessionTotalSeconds =
       remainingSeconds;
 
+    timerEndTime =
+      Date.now() +
+      remainingSeconds * 1000;
+
     suggestionEl.textContent =
       "New focus round. Keep going.";
 
@@ -800,23 +829,41 @@ function switchMode() {
 }
 
 function scheduleTick() {
-  clearTimeout(timerId);
+  clearInterval(timerId);
 
   if (mode === "idle" || isPaused) {
     return;
   }
 
-  timerId = setTimeout(() => {
-    remainingSeconds -= 1;
+  if (timerEndTime === null) {
+    timerEndTime =
+      Date.now() +
+      remainingSeconds * 1000;
+  }
 
-    if (remainingSeconds <= 0) {
-      remainingSeconds = 0;
-      updateUI();
-      switchMode();
+  timerId = setInterval(() => {
+    if (mode === "idle" || isPaused) {
+      return;
     }
 
-    scheduleTick();
-  }, 1000);
+    remainingSeconds = Math.max(
+      0,
+      Math.ceil(
+        (timerEndTime - Date.now()) / 1000
+      )
+    );
+
+    updateUI();
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerId);
+      timerId = null;
+      timerEndTime = null;
+
+      switchMode();
+      scheduleTick();
+    }
+  }, 250);
 }
 
 function updateIdlePreview() {
@@ -832,8 +879,12 @@ function updateIdlePreview() {
     Number.isFinite(focus) &&
     focus > 0
   ) {
-    remainingSeconds = focus * 60;
-    sessionTotalSeconds = remainingSeconds;
+    remainingSeconds =
+      focus * 60;
+
+    sessionTotalSeconds =
+      remainingSeconds;
+
     updateUI();
   }
 }

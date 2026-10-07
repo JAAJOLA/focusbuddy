@@ -2,647 +2,174 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
   <title>Focus Buddy</title>
-  <style>
-    body {
-      font-family: "Poppins", sans-serif;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: #111; /* actual images handled by bg layers */
-      overflow: hidden;
-    }
 
-    /* Fullscreen cross-fading background layers */
-    .bg-layer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-position: center center;
-      background-repeat: no-repeat;
-      background-size: cover;
-      transition: opacity 0.8s ease;
-      z-index: -1;
-      opacity: 0;
-      background-color: #111;
-    }
-    #bg1 {
-      opacity: 1;
-      background-image: url('background.jpg'); /* initial/default */
-    }
-    #bg2 {
-      opacity: 0;
-    }
-
-    .container {
-      position: relative;
-      background: rgba(255,255,255,0.25);
-      padding: 30px;
-      border-radius: 15px;
-      width: 450px;
-      text-align: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-      backdrop-filter: blur(2px);
-    }
-
-    h1 { margin-bottom: 10px; }
-
-    .controls label {
-      display: block;
-      margin: 10px 0;
-      font-weight: 500;
-    }
-
-    input, select {
-      padding: 8px;
-      border-radius: 8px;
-      border: none;
-      margin-top: 5px;
-      width: 80%;
-    }
-
-    input[type="range"] { width: 80%; }
-
-    button {
-      background: #4e54c8;
-      color: white;
-      border: none;
-      padding: 12px 18px;
-      margin: 8px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 16px;
-      transition: 0.3s;
-    }
-    button:hover {
-      background: #6a73ff;
-      transform: scale(1.05);
-    }
-
-    .info { margin-top: 18px; }
-
-    #status { font-size: 1.3rem; margin-top:5px; }
-    #timeLeft { font-size: 2.4rem; margin: 8px 0 6px 0; }
-    #suggestion { margin-top: 12px; font-style: italic; opacity: .9; }
-    #sessionsCount { margin-top:4px; font-size:1rem; opacity:.8; }
-    #nowPlaying { margin-top:8px; font-size:1rem; opacity:.8; }
-
-    /* Settings UI */
-    .settings-button {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(255,255,255,0.95);
-      border: none;
-      font-size: 22px;
-      padding: 6px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-    .settings-button:hover {
-      background: rgba(240,240,240,1);
-    }
-
-    .settings-panel {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 360px;
-      padding: 25px;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-      text-align: center;
-      z-index: 10;
-      color: #000;
-    }
-    .hidden { display: none; }
-
-    ul#customSoundList { list-style:none; padding:0; margin-top:10px; }
-    ul#customSoundList li {
-      display:flex;
-      justify-content:space-between;
-      margin:6px 0;
-      background:rgba(0,0,0,0.05);
-      padding:5px 10px;
-      border-radius:6px;
-      font-size: 0.9rem;
-    }
-
-    .small-btn, .close-btn {
-      background:#4e54c8;
-      color:white;
-      border:none;
-      padding:10px 14px;
-      margin-top:15px;
-      border-radius:10px;
-      cursor:pointer;
-      font-size: 0.95rem;
-    }
-    .small-btn:hover, .close-btn:hover { background:#6a73ff; }
-
-    .delete-btn {
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-<body>
 
-  <!-- cross-fade background layers -->
+<body>
   <div id="bg1" class="bg-layer"></div>
   <div id="bg2" class="bg-layer"></div>
+  <div class="overlay"></div>
 
-  <div class="container">
-    <button id="settingsBtn" class="settings-button">⚙️</button>
+  <main class="app-shell">
+    <section class="app-card" aria-label="Focus Buddy timer">
+      <div class="timer-panel">
+        <div class="brand-row">
+          <div class="brand">
+            <div class="brand-icon" aria-hidden="true">◎</div>
+            <div>
+              <h1>Focus Buddy</h1>
+              <p class="subtitle">Focus deeply. Recharge intentionally.</p>
+            </div>
+          </div>
 
-    <h1>Focus Buddy</h1>
-    <p>Focus timer with music and recharge breaks</p>
+          <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings" title="Settings">
+            ⚙
+          </button>
+        </div>
 
-    <div class="controls">
-      <label>Focus (min):
-        <input type="number" id="focusMinutes" value="25" min="1">
-      </label>
+        <div class="timer-center">
+          <div id="timerRing" class="timer-ring" aria-label="Timer progress">
+            <div class="timer-content">
+              <div id="status">Idle</div>
+              <div id="timeLeft" aria-live="polite">25:00</div>
+              <p id="suggestion" class="mode-note">
+                Choose your focus session and press Start.
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <label>Break (min):
-        <input type="number" id="breakMinutes" value="5" min="1">
-      </label>
+        <div>
+          <div class="primary-actions">
+            <button id="startBtn" class="action-btn primary" type="button">Start Focus</button>
+            <button id="stopBtn" class="action-btn secondary" type="button">Reset</button>
+          </div>
 
-      <label>Music:
-        <select id="musicSelect">
-          <option value="random">🎲 Random Ambient</option>
-          <option value="upload">📁 Upload Custom Sound</option>
-          <option value="Dryer.mp3">Dryer</option>
-          <option value="rain.mp3">Rain & Thunder</option>
-          <option value="White-Noise.mp3">White-Noise</option>
-          <option value="Ocean.mp3">Ocean</option>
-          <option value="Heater.mp3">Heater</option>
-          <option value="india.mp3">India</option>
-          <option value="piano.mp3">Piano</option>
-        </select>
-      </label>
+          <div class="session-stats">
+            <div class="stat-card">
+              <div class="stat-label">Sessions completed</div>
+              <div class="stat-value"><span id="sessionsNumber">0</span></div>
+            </div>
 
-      <input type="file" id="customSoundInput" accept="audio/*" style="display:none;">
+            <div class="stat-card">
+              <div class="stat-label">Now playing</div>
+              <div id="nowPlaying" class="stat-value" title="None">None</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <label>Volume:
-        <input type="range" id="volumeControl" min="0" max="100" value="70">
-      </label>
+      <aside class="control-panel">
+        <h2>Session setup</h2>
+        <p class="panel-copy">
+          Customize your work and recharge cycle, then pair it with an ambient sound.
+        </p>
 
-      <button id="startBtn">Start</button>
-      <button id="stopBtn">Stop</button>
-    </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Duration</span>
+            <span>minutes</span>
+          </div>
 
-    <div class="info">
-      <div id="status">Status: Idle</div>
-      <div id="timeLeft">00:00</div>
-      <div id="nowPlaying">Now Playing: None</div>
-      <div id="sessionsCount">Sessions completed: <span id="sessionsNumber">0</span></div>
-      <div id="suggestion"></div>
-    </div>
+          <div class="duration-row">
+            <div>
+              <label class="control-label" for="focusMinutes">
+                <span>Focus</span>
+              </label>
+              <input type="number" id="focusMinutes" value="25" min="1" max="240" inputmode="numeric" />
+            </div>
 
-    <audio id="focusMusic" src="Dryer.mp3" loop></audio>
-    <audio id="endSound" src="ding.mp3"></audio>
+            <div>
+              <label class="control-label" for="breakMinutes">
+                <span>Break</span>
+              </label>
+              <input type="number" id="breakMinutes" value="5" min="1" max="120" inputmode="numeric" />
+            </div>
+          </div>
+        </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsPanel" class="settings-panel hidden">
-      <h2>Settings</h2>
+        <div class="control-group">
+          <label class="control-label" for="musicSelect">
+            <span>Ambient sound</span>
+          </label>
 
-      <label>Random Switch Interval<br>
-        <input type="range" id="switchInterval" min="30" max="600" value="120">
-        <span id="intervalLabel">120s</span>
-      </label>
+          <select id="musicSelect">
+            <option value="random">🎲 Random Ambient</option>
+            <option value="upload">＋ Upload Custom Sound</option>
+          </select>
 
-      <h3>Uploaded Custom Sounds</h3>
+          <input type="file" id="customSoundInput" accept="audio/*" hidden />
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Volume</span>
+            <span id="volumeLabel">70%</span>
+          </div>
+          <input type="range" id="volumeControl" min="0" max="100" value="70" aria-label="Volume" />
+        </div>
+
+        <div class="utility-row">
+          <div>
+            <div class="utility-title">Sound rotation</div>
+            <div class="utility-subtitle">Change random ambience automatically.</div>
+          </div>
+          <button id="openSoundSettings" class="mini-btn" type="button">Adjust</button>
+        </div>
+
+        <div class="utility-row">
+          <div>
+            <div class="utility-title">Custom audio</div>
+            <div class="utility-subtitle">Add a local sound for this browser session.</div>
+          </div>
+          <button id="uploadSoundBtn" class="mini-btn" type="button">Upload</button>
+        </div>
+
+        <p class="keyboard-tip">
+          Tip: press <kbd>Space</kbd> to start, pause, or resume.
+          Press <kbd>R</kbd> to reset.
+        </p>
+      </aside>
+    </section>
+  </main>
+
+  <div id="settingsBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-panel">
+      <div class="settings-head">
+        <div>
+          <h2 id="settingsTitle">Settings</h2>
+          <p>Fine-tune your random sound rotation.</p>
+        </div>
+        <button id="closeSettings" class="icon-btn" type="button" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>Random switch interval</span>
+          <span id="intervalLabel">120s</span>
+        </div>
+        <input type="range" id="switchInterval" min="30" max="600" step="10" value="120" />
+      </div>
+
+      <h3>Uploaded custom sounds</h3>
       <ul id="customSoundList"></ul>
 
-      <button id="clearCustomSounds" class="small-btn">Clear Uploaded Sounds</button>
-      <br>
-      <button id="closeSettings" class="close-btn">Close</button>
+      <div class="settings-actions">
+        <button id="clearCustomSounds" class="action-btn secondary" type="button">Clear uploads</button>
+        <button id="doneSettings" class="action-btn primary" type="button">Done</button>
+      </div>
     </div>
   </div>
 
-<script>
-const statusEl = document.getElementById('status');
-const timeLeftEl = document.getElementById('timeLeft');
-const suggestionEl = document.getElementById('suggestion');
-const sessionsNumberEl = document.getElementById('sessionsNumber');
-const nowPlayingEl = document.getElementById('nowPlaying');
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-const focusInput = document.getElementById('focusMinutes');
-const breakInput = document.getElementById('breakMinutes');
+  <audio id="focusMusic" src="audio/Dryer.mp3" loop preload="auto"></audio>
+  <audio id="endSound" src="assets/ding.mp3" preload="auto"></audio>
 
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-
-const musicSelect = document.getElementById('musicSelect');
-const volumeControl = document.getElementById('volumeControl');
-const customSoundInput = document.getElementById('customSoundInput');
-
-const settingsBtn = document.getElementById("settingsBtn");
-const settingsPanel = document.getElementById("settingsPanel");
-const closeSettings = document.getElementById("closeSettings");
-const switchInterval = document.getElementById("switchInterval");
-const intervalLabel = document.getElementById("intervalLabel");
-const customSoundList = document.getElementById("customSoundList");
-const clearCustomSounds = document.getElementById("clearCustomSounds");
-
-const bg1 = document.getElementById('bg1');
-const bg2 = document.getElementById('bg2');
-let currentBgLayer = 1;
-
-let switchIntervalSeconds = parseInt(switchInterval.value, 10);
-intervalLabel.textContent = switchIntervalSeconds + "s";
-
-const focusMusic = document.getElementById('focusMusic');
-const endSound = document.getElementById('endSound');
-
-const breakSuggestions = [
-  "Stand up and stretch your neck and shoulders for 2 minutes.",
-  "Close your eyes and breathe deeply 10 times.",
-  "Drink water away from your screen.",
-  "Walk around the room for 1–2 min.",
-  "Look out a window and focus far away."
-];
-
-const soundFiles = [
-  "Dryer.mp3",
-  "rain.mp3",
-  "White-Noise.mp3",
-  "Ocean.mp3",
-  "Heater.mp3",
-  "india.mp3",
-  "piano.mp3"
-];
-
-// Built-in sound → background image mapping
-const soundImageMap = {
-  "Dryer.mp3": "Dryer.jfif",
-  "rain.mp3": "rain.jfif",
-  "White-Noise.mp3": "White-Noise.jfif",
-  "Ocean.mp3": "Ocean.jpg",
-  "Heater.mp3": "Heater.jfif",
-  "india.mp3": "india.jpg",
-  "piano.mp3": "piano.jfif"
-};
-
-let customRandomSounds = [];
-let mode = 'idle';  // idle | focus | break
-let timerId = null;
-let randomSoundTimerId = null;
-let remainingSeconds = 0;
-let sessionsCompleted = 0;
-let isPaused = false;
-
-/* ---------- Helpers ---------- */
-
-// Pretty name: remove extension, replace -/_ with spaces, capitalize words
-function cleanName(filename) {
-  const base = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-  return base.replace(/\b\w/g, ch => ch.toUpperCase());
-}
-
-function formatTime(seconds) {
-  const m = Math.floor(seconds/60).toString().padStart(2,'0');
-  const s = (seconds%60).toString().padStart(2,'0');
-  return `${m}:${s}`;
-}
-
-// Cross-fade background images using two layers
-function setBackground(imagePath) {
-  const show = (currentBgLayer === 1) ? bg2 : bg1;
-  const hide = (currentBgLayer === 1) ? bg1 : bg2;
-
-  show.style.backgroundImage = `url('${imagePath}')`;
-  show.style.opacity = '1';
-  hide.style.opacity = '0';
-
-  currentBgLayer = (currentBgLayer === 1) ? 2 : 1;
-}
-
-// Set background + Now Playing according to rules
-function updateSoundVisuals(src) {
-  // Idle / stop
-  if (!src) {
-    nowPlayingEl.textContent = "Now Playing: None";
-    setBackground('background.jpg');
-    return;
-  }
-
-  const file = src.split("/").pop();
-  const niceName = cleanName(file);
-  const isRandom = (musicSelect.value === "random");
-  const isCustom = src.startsWith("blob:");
-
-  // Random mode OR custom upload → always use background.jpg
-  if (isRandom || isCustom) {
-    nowPlayingEl.textContent = `Now Playing: ${niceName}`;
-    setBackground('background.jpg');
-    return;
-  }
-
-  // Built-in sound with specific image
-  if (soundImageMap[file]) {
-    const img = soundImageMap[file];
-    nowPlayingEl.textContent = "Now Playing: " + niceName;
-    setBackground(img);
-    return;
-  }
-
-  // Fallback
-  nowPlayingEl.textContent = "Now Playing: " + niceName;
-  setBackground('background.jpg');
-}
-
-function playFocusMusic(shouldPlay) {
-  if (shouldPlay) {
-    focusMusic.play().catch(()=>{});
-  } else {
-    focusMusic.pause();
-    focusMusic.currentTime = 0;
-  }
-}
-
-/* ---------- Random Sound Cycle ---------- */
-
-function clearRandomSoundTimer(){
-  if(randomSoundTimerId) {
-    clearTimeout(randomSoundTimerId);
-    randomSoundTimerId = null;
-  }
-}
-
-function startRandomSoundCycle() {
-  clearRandomSoundTimer();
-
-  function cycle() {
-    if (mode !== 'focus' || isPaused) return;
-
-    const allSounds = soundFiles.concat(customRandomSounds);
-    if (allSounds.length === 0) return;
-
-    const idx = Math.floor(Math.random()*allSounds.length);
-    const newSrc = allSounds[idx];
-
-    focusMusic.pause();
-    focusMusic.src = newSrc;
-    focusMusic.load();
-    focusMusic.play().catch(()=>{});
-
-    updateSoundVisuals(newSrc); // will show actual track name, but keep background.jpg
-
-    randomSoundTimerId = setTimeout(cycle, switchIntervalSeconds*1000);
-  }
-
-  cycle();
-}
-
-/* ---------- Custom Sound Upload ---------- */
-
-musicSelect.addEventListener("change", () => {
-  const value = musicSelect.value;
-
-  if (value === "upload") {
-    customSoundInput.click();
-    return;
-  }
-
-  if (value === "random") {
-    // switching to random → show default background, wait for cycle pick
-    updateSoundVisuals(null);
-    if (mode === "focus" && !isPaused) {
-      startRandomSoundCycle();
-    }
-    return;
-  }
-
-  clearRandomSoundTimer();
-  focusMusic.src = value;
-  focusMusic.load();
-  updateSoundVisuals(value);
-  if (mode === "focus" && !isPaused) {
-    playFocusMusic(true);
-  }
-});
-
-customSoundInput.addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-
-  customRandomSounds.push(url);
-  addSoundToList(file.name, url);
-  saveCustomSounds();
-
-  const opt = document.createElement("option");
-  opt.value = url;
-  opt.textContent = "📌 " + file.name;
-  musicSelect.appendChild(opt);
-  musicSelect.value = url;
-
-  focusMusic.src = url;
-  focusMusic.load();
-  updateSoundVisuals(url); // treated as custom → background.jpg
-  if (mode === "focus") {
-    playFocusMusic(true);
-  }
-});
-
-function addSoundToList(name, url) {
-  const li = document.createElement("li");
-  li.innerHTML = `${name} <button data-url="${url}" class="delete-btn">❌</button>`;
-  customSoundList.appendChild(li);
-
-  li.querySelector(".delete-btn").addEventListener("click", () => {
-    customRandomSounds = customRandomSounds.filter(x=>x!==url);
-    const opt = [...musicSelect.options].find(o=>o.value===url);
-    if(opt) opt.remove();
-    li.remove();
-    saveCustomSounds();
-  });
-}
-
-clearCustomSounds.addEventListener("click",()=>{
-  customRandomSounds=[];
-  saveCustomSounds();
-  [...customSoundList.children].forEach(li=>li.remove());
-});
-
-/* ---------- Timer ---------- */
-
-function startTimer() {
-  if (mode === 'idle') {
-    const focusMins = parseInt(focusInput.value, 10);
-    const breakMins = parseInt(breakInput.value, 10);
-    if (isNaN(focusMins) || isNaN(breakMins) || focusMins <= 0 || breakMins <= 0) {
-      alert("Enter valid positive numbers for focus and break.");
-      return;
-    }
-
-    mode = "focus";
-    isPaused = false;
-    remainingSeconds = focusMins * 60;
-    suggestionEl.textContent = "";
-    const selection = musicSelect.value;
-
-    if (selection === "random") {
-      updateSoundVisuals(null);
-      startRandomSoundCycle();
-    } else if (selection !== "upload") {
-      focusMusic.src = selection;
-      focusMusic.load();
-      playFocusMusic(true);
-      updateSoundVisuals(selection);
-    }
-
-    updateUI();
-    tick();
-    startBtn.textContent = "Pause";
-    return;
-  }
-
-  // pause
-  if (!isPaused) {
-    isPaused = true;
-    clearRandomSoundTimer();
-    playFocusMusic(false);
-    statusEl.textContent += " (Paused)";
-    startBtn.textContent = "Resume";
-  }
-  // resume
-  else {
-    isPaused = false;
-    if (musicSelect.value === "random") {
-      startRandomSoundCycle();
-    } else {
-      playFocusMusic(true);
-    }
-    updateUI();
-    tick();
-    startBtn.textContent = "Pause";
-  }
-}
-
-function stopTimer(){
-  mode="idle";
-  isPaused=false;
-  remainingSeconds=0;
-  if (timerId) clearTimeout(timerId);
-  clearRandomSoundTimer();
-  playFocusMusic(false);
-  statusEl.textContent="Status: Idle";
-  timeLeftEl.textContent="00:00";
-  suggestionEl.textContent="";
-  updateSoundVisuals(null);
-  startBtn.textContent="Start";
-}
-
-function tick() {
-  if (mode==="idle" || isPaused) return;
-
-  timeLeftEl.textContent = formatTime(remainingSeconds);
-
-  if (remainingSeconds<=0) {
-    if (mode==="focus") {
-      sessionsCompleted++;
-      sessionsNumberEl.textContent=sessionsCompleted;
-      endSound.currentTime=0;
-      endSound.play().catch(()=>{});
-      mode="break";
-      remainingSeconds=parseInt(breakInput.value, 10)*60;
-      clearRandomSoundTimer();
-      playFocusMusic(false);
-      suggestionEl.textContent="Break: " + breakSuggestions[Math.floor(Math.random()*breakSuggestions.length)];
-    }
-    else {
-      mode="focus";
-      remainingSeconds=parseInt(focusInput.value, 10)*60;
-      suggestionEl.textContent="";
-      if (musicSelect.value==="random") {
-        updateSoundVisuals(null);
-        startRandomSoundCycle();
-      } else {
-        const selection = musicSelect.value;
-        if (selection && selection !== "upload") {
-          focusMusic.src = selection;
-          focusMusic.load();
-          playFocusMusic(true);
-          updateSoundVisuals(selection);
-        }
-      }
-    }
-    updateUI();
-  } else {
-    remainingSeconds--;
-  }
-
-  timerId = setTimeout(tick,1000);
-}
-
-function updateUI(){
-  if (mode === "focus") {
-    statusEl.textContent = "Status: FOCUS 🎯";
-  } else if (mode === "break") {
-    statusEl.textContent = "Status: BREAK ☕";
-  } else {
-    statusEl.textContent = "Status: Idle";
-  }
-  timeLeftEl.textContent = formatTime(remainingSeconds);
-}
-
-/* ---------- Settings Panel & Interval Slider ---------- */
-
-settingsBtn.addEventListener("click", ()=> settingsPanel.classList.remove("hidden"));
-closeSettings.addEventListener("click", ()=> settingsPanel.classList.add("hidden"));
-
-switchInterval.addEventListener("input",()=>{
-  switchIntervalSeconds = parseInt(switchInterval.value, 10);
-  intervalLabel.textContent = switchIntervalSeconds+"s";
-});
-
-/* ---------- Local Storage for Custom Sounds (UI only) ---------- */
-
-function saveCustomSounds(){
-  localStorage.setItem("customSounds", JSON.stringify(customRandomSounds));
-}
-
-function loadCustomSounds(){
-  const saved = JSON.parse(localStorage.getItem("customSounds") || "[]");
-  customRandomSounds = saved;
-  saved.forEach((url,i)=>{
-    addSoundToList("Custom "+(i+1), url);
-    const opt=document.createElement("option");
-    opt.value=url;
-    opt.textContent="📌 Custom "+(i+1);
-    musicSelect.appendChild(opt);
-  });
-}
-
-/* ---------- Init ---------- */
-
-startBtn.addEventListener("click", startTimer);
-stopBtn.addEventListener("click", stopTimer);
-
-volumeControl.addEventListener("input", ()=>{
-  const v = volumeControl.value / 100;
-  focusMusic.volume = v;
-  endSound.volume = v;
-});
-volumeControl.dispatchEvent(new Event("input"));
-
-loadCustomSounds();
-updateSoundVisuals(null); // idle → background.jpg (already set in CSS but keeps logic consistent)
-</script>
-
+  <script src="js/app.js" defer></script>
 </body>
 </html>
-
-
-
-
-

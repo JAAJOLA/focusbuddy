@@ -14,17 +14,18 @@ const stopBtn = $("stopBtn");
 const musicSelect = $("musicSelect");
 const volumeControl = $("volumeControl");
 const volumeLabel = $("volumeLabel");
-const customSoundInput = $("customSoundInput");
-const uploadSoundBtn = $("uploadSoundBtn");
-const settingsBtn = $("settingsBtn");
-const openSoundSettings = $("openSoundSettings");
-const settingsBackdrop = $("settingsBackdrop");
-const closeSettings = $("closeSettings");
-const doneSettings = $("doneSettings");
 const switchInterval = $("switchInterval");
 const intervalLabel = $("intervalLabel");
-const customSoundList = $("customSoundList");
-const clearCustomSounds = $("clearCustomSounds");
+const customAudioCard = $("customAudioCard");
+const audioLibraryBackdrop = $("audioLibraryBackdrop");
+const closeAudioLibrary = $("closeAudioLibrary");
+const closeAudioLibraryBottom = $("closeAudioLibraryBottom");
+const librarySelect = $("librarySelect");
+const defaultAudioList = $("defaultAudioList");
+const uploadedAudioList = $("uploadedAudioList");
+const defaultAudioCount = $("defaultAudioCount");
+const uploadAudioBtn = $("uploadAudioBtn");
+const customSoundInput = $("customSoundInput");
 const toast = $("toast");
 const bg1 = $("bg1");
 const bg2 = $("bg2");
@@ -143,6 +144,16 @@ function formatTime(seconds) {
   return `${minutes}:${secs}`;
 }
 
+function formatInterval(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  if (secs === 0) return `${minutes} min`;
+  return `${minutes}m ${secs}s`;
+}
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -160,7 +171,6 @@ function setBackground(imagePath) {
   show.style.backgroundImage = `url("${imagePath}")`;
   show.style.opacity = "1";
   hide.style.opacity = "0";
-
   currentBgLayer = currentBgLayer === 1 ? 2 : 1;
 }
 
@@ -189,22 +199,48 @@ function stopAndRewindMusic() {
   focusMusic.currentTime = 0;
 }
 
-function populateBuiltInSounds() {
-  const uploadOption = [...musicSelect.options].find(
-    (option) => option.value === "upload"
-  );
+function populateMusicSelectors() {
+  musicSelect.innerHTML = "";
+  librarySelect.innerHTML = "";
+
+  const randomMain = document.createElement("option");
+  randomMain.value = "random";
+  randomMain.textContent = "🎲 Random Ambient";
+  musicSelect.appendChild(randomMain);
+
+  const randomLibrary = document.createElement("option");
+  randomLibrary.value = "random";
+  randomLibrary.textContent = "🎲 Random Ambient";
+  librarySelect.appendChild(randomLibrary);
 
   ambientSounds.forEach((item) => {
-    const option = document.createElement("option");
-    option.value = item.audio;
-    option.textContent = item.name;
+    const mainOption = document.createElement("option");
+    mainOption.value = item.audio;
+    mainOption.textContent = item.name;
+    musicSelect.appendChild(mainOption);
 
-    if (uploadOption) {
-      musicSelect.insertBefore(option, uploadOption);
-    } else {
-      musicSelect.appendChild(option);
-    }
+    const libraryOption = document.createElement("option");
+    libraryOption.value = item.audio;
+    libraryOption.textContent = item.name;
+    librarySelect.appendChild(libraryOption);
   });
+
+  customSounds.forEach((item) => {
+    const mainOption = document.createElement("option");
+    mainOption.value = item.url;
+    mainOption.textContent = `📌 ${item.name}`;
+    musicSelect.appendChild(mainOption);
+
+    const libraryOption = document.createElement("option");
+    libraryOption.value = item.url;
+    libraryOption.textContent = `📌 ${item.name}`;
+    librarySelect.appendChild(libraryOption);
+  });
+}
+
+function syncSelectors(value) {
+  musicSelect.value = value;
+  librarySelect.value = value;
 }
 
 function playAmbientByIndex(index, shouldPlay = true) {
@@ -226,26 +262,11 @@ function playAmbientByIndex(index, shouldPlay = true) {
   if (shouldPlay && mode === "focus" && !isPaused) {
     playFocusMusic();
   }
+
+  renderAudioLibrary();
 }
 
-function playSelectedManualAmbient() {
-  const selectedAudio = musicSelect.value;
-
-  const index = ambientSounds.findIndex(
-    (item) => item.audio === selectedAudio
-  );
-
-  if (index !== -1) {
-    playAmbientByIndex(index);
-    return;
-  }
-
-  const custom = customSounds.find(
-    (item) => item.url === selectedAudio
-  );
-
-  if (!custom) return;
-
+function playCustomSound(custom, shouldPlay = true) {
   currentAmbientIndex = -1;
 
   focusMusic.pause();
@@ -256,8 +277,31 @@ function playSelectedManualAmbient() {
   setNowPlaying(custom.name);
   setDefaultBackground();
 
-  if (mode === "focus" && !isPaused) {
+  if (shouldPlay && mode === "focus" && !isPaused) {
     playFocusMusic();
+  }
+
+  renderAudioLibrary();
+}
+
+function playSelectedAudio(shouldPlay = true) {
+  const selectedAudio = musicSelect.value;
+
+  const index = ambientSounds.findIndex(
+    (item) => item.audio === selectedAudio
+  );
+
+  if (index !== -1) {
+    playAmbientByIndex(index, shouldPlay);
+    return;
+  }
+
+  const custom = customSounds.find(
+    (item) => item.url === selectedAudio
+  );
+
+  if (custom) {
+    playCustomSound(custom, shouldPlay);
   }
 }
 
@@ -275,7 +319,7 @@ function playNextAmbient() {
   const nextIndex = (currentIndex + 1) % ambientSounds.length;
   const nextAmbient = ambientSounds[nextIndex];
 
-  musicSelect.value = nextAmbient.audio;
+  syncSelectors(nextAmbient.audio);
   clearRandomSoundTimer();
   playAmbientByIndex(nextIndex);
 }
@@ -386,140 +430,8 @@ function handleNowPlayingClick() {
   }
 }
 
-nowPlayingCard.addEventListener("click", handleNowPlayingClick);
-
-nowPlayingCard.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    handleNowPlayingClick();
-  }
-});
-
-function syncCustomList() {
-  customSoundList.innerHTML = "";
-
-  if (!customSounds.length) {
-    const empty = document.createElement("li");
-    empty.textContent = "No custom sounds uploaded yet.";
-    customSoundList.appendChild(empty);
-    return;
-  }
-
-  customSounds.forEach((item) => {
-    const li = document.createElement("li");
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "sound-name";
-    nameSpan.textContent = item.name;
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "delete-btn";
-    deleteBtn.type = "button";
-    deleteBtn.textContent = "✕";
-
-    deleteBtn.addEventListener("click", () => {
-      removeCustomSound(item.id);
-    });
-
-    li.append(nameSpan, deleteBtn);
-    customSoundList.appendChild(li);
-  });
-}
-
-function addCustomOption(item) {
-  const option = document.createElement("option");
-  option.value = item.url;
-  option.dataset.customId = item.id;
-  option.textContent = `📌 ${item.name}`;
-  musicSelect.appendChild(option);
-}
-
-function removeCustomSound(id) {
-  const item = customSounds.find(
-    (sound) => sound.id === id
-  );
-
-  if (!item) return;
-
-  if (musicSelect.value === item.url) {
-    musicSelect.value = "random";
-
-    if (mode === "focus") {
-      startRandomSoundCycle();
-    } else {
-      setNowPlaying("None");
-      setDefaultBackground();
-    }
-  }
-
-  const option = [...musicSelect.options].find(
-    (opt) => opt.dataset.customId === id
-  );
-
-  if (option) {
-    option.remove();
-  }
-
-  URL.revokeObjectURL(item.url);
-
-  customSounds = customSounds.filter(
-    (sound) => sound.id !== id
-  );
-
-  syncCustomList();
-  showToast("Custom sound removed.");
-}
-
-function openUploadDialog() {
-  customSoundInput.value = "";
-  customSoundInput.click();
-}
-
-customSoundInput.addEventListener("change", (event) => {
-  const file = event.target.files?.[0];
-
-  if (!file) return;
-
-  const item = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    name: file.name,
-    url: URL.createObjectURL(file)
-  };
-
-  customSounds.push(item);
-  addCustomOption(item);
-  syncCustomList();
-
-  musicSelect.value = item.url;
-
-  clearRandomSoundTimer();
-
-  currentAmbientIndex = -1;
-
-  focusMusic.pause();
-  focusMusic.src = item.url;
-  focusMusic.load();
-  focusMusic.loop = true;
-
-  setNowPlaying(item.name);
-  setDefaultBackground();
-
-  if (mode === "focus" && !isPaused) {
-    playFocusMusic();
-  }
-
-  showToast(`${item.name} added.`);
-});
-
-musicSelect.addEventListener("change", () => {
-  const value = musicSelect.value;
-
-  if (value === "upload") {
-    musicSelect.value = "random";
-    openUploadDialog();
-    return;
-  }
-
+function applyAudioSelection(value) {
+  syncSelectors(value);
   clearRandomSoundTimer();
   randomSwitchRemainingMs = null;
   randomSwitchStartedAt = null;
@@ -534,32 +446,191 @@ musicSelect.addEventListener("change", () => {
         playAmbientByIndex(index, false);
       }
 
-      randomSwitchRemainingMs =
-        switchIntervalSeconds * 1000;
+      randomSwitchRemainingMs = switchIntervalSeconds * 1000;
     } else {
       setNowPlaying("None");
       setDefaultBackground();
     }
+  } else {
+    playSelectedAudio(mode === "focus" && !isPaused);
+  }
 
+  renderAudioLibrary();
+}
+
+function renderAudioLibrary() {
+  defaultAudioList.innerHTML = "";
+  uploadedAudioList.innerHTML = "";
+  defaultAudioCount.textContent = `${ambientSounds.length} sounds`;
+
+  ambientSounds.forEach((item, index) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "audio-item";
+
+    if (musicSelect.value === item.audio) {
+      row.classList.add("selected");
+    }
+
+    const text = document.createElement("div");
+
+    const name = document.createElement("div");
+    name.className = "audio-item-name";
+    name.textContent = item.name;
+
+    const meta = document.createElement("div");
+    meta.className = "audio-item-meta";
+    meta.textContent = `Default sound ${index + 1}`;
+
+    text.append(name, meta);
+    row.appendChild(text);
+
+    row.addEventListener("click", () => {
+      applyAudioSelection(item.audio);
+    });
+
+    defaultAudioList.appendChild(row);
+  });
+
+  if (!customSounds.length) {
+    const empty = document.createElement("div");
+    empty.className = "library-empty";
+    empty.textContent = "No uploaded audio yet.";
+    uploadedAudioList.appendChild(empty);
     return;
   }
 
-  playSelectedManualAmbient();
+  customSounds.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "audio-item";
+
+    if (musicSelect.value === item.url) {
+      row.classList.add("selected");
+    }
+
+    const text = document.createElement("div");
+    text.className = "audio-item-name";
+    text.textContent = item.name;
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-audio-btn";
+    deleteButton.textContent = "✕";
+    deleteButton.setAttribute("aria-label", `Delete ${item.name}`);
+
+    text.addEventListener("click", () => {
+      applyAudioSelection(item.url);
+    });
+
+    deleteButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      removeCustomSound(item.id);
+    });
+
+    row.append(text, deleteButton);
+    uploadedAudioList.appendChild(row);
+  });
+}
+
+function removeCustomSound(id) {
+  const item = customSounds.find(
+    (sound) => sound.id === id
+  );
+
+  if (!item) return;
+
+  const wasSelected = musicSelect.value === item.url;
+
+  URL.revokeObjectURL(item.url);
+
+  customSounds = customSounds.filter(
+    (sound) => sound.id !== id
+  );
+
+  populateMusicSelectors();
+
+  if (wasSelected) {
+    syncSelectors("random");
+
+    if (mode === "focus" && !isPaused) {
+      startRandomSoundCycle();
+    } else {
+      setNowPlaying("None");
+      setDefaultBackground();
+    }
+  } else {
+    syncSelectors(musicSelect.value || "random");
+  }
+
+  renderAudioLibrary();
+  showToast("Custom sound removed.");
+}
+
+function openAudioLibrary() {
+  renderAudioLibrary();
+  librarySelect.value = musicSelect.value;
+  audioLibraryBackdrop.classList.remove("hidden");
+}
+
+function closeLibrary() {
+  audioLibraryBackdrop.classList.add("hidden");
+}
+
+customAudioCard.addEventListener("click", openAudioLibrary);
+
+customAudioCard.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    openAudioLibrary();
+  }
 });
 
-clearCustomSounds.addEventListener("click", () => {
-  customSounds.forEach((item) => {
-    URL.revokeObjectURL(item.url);
-  });
+closeAudioLibrary.addEventListener("click", closeLibrary);
+closeAudioLibraryBottom.addEventListener("click", closeLibrary);
 
-  customSounds = [];
+audioLibraryBackdrop.addEventListener("click", (event) => {
+  if (event.target === audioLibraryBackdrop) {
+    closeLibrary();
+  }
+});
 
-  [...musicSelect.options]
-    .filter((option) => option.dataset.customId)
-    .forEach((option) => option.remove());
+uploadAudioBtn.addEventListener("click", () => {
+  customSoundInput.value = "";
+  customSoundInput.click();
+});
 
-  syncCustomList();
-  showToast("Uploaded sounds cleared.");
+customSoundInput.addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const item = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: file.name,
+    url: URL.createObjectURL(file)
+  };
+
+  customSounds.push(item);
+  populateMusicSelectors();
+  applyAudioSelection(item.url);
+  showToast(`${item.name} added.`);
+});
+
+musicSelect.addEventListener("change", () => {
+  applyAudioSelection(musicSelect.value);
+});
+
+librarySelect.addEventListener("change", () => {
+  applyAudioSelection(librarySelect.value);
+});
+
+nowPlayingCard.addEventListener("click", handleNowPlayingClick);
+
+nowPlayingCard.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    handleNowPlayingClick();
+  }
 });
 
 function getDurationForMode(currentMode) {
@@ -592,15 +663,10 @@ function updateProgressRing() {
   let progress = 0;
 
   if (sessionTotalSeconds > 0) {
-    progress =
-      1 -
-      remainingSeconds / sessionTotalSeconds;
+    progress = 1 - remainingSeconds / sessionTotalSeconds;
   }
 
-  progress = Math.min(
-    1,
-    Math.max(0, progress)
-  );
+  progress = Math.min(1, Math.max(0, progress));
 
   timerRing.style.setProperty(
     "--progress",
@@ -610,18 +676,14 @@ function updateProgressRing() {
 
 function updateUI() {
   if (mode === "focus") {
-    statusEl.textContent =
-      isPaused ? "Focus paused" : "Focus";
+    statusEl.textContent = isPaused ? "Focus paused" : "Focus";
   } else if (mode === "break") {
-    statusEl.textContent =
-      isPaused ? "Break paused" : "Break";
+    statusEl.textContent = isPaused ? "Break paused" : "Break";
   } else {
     statusEl.textContent = "Idle";
   }
 
-  timeLeftEl.textContent =
-    formatTime(remainingSeconds);
-
+  timeLeftEl.textContent = formatTime(remainingSeconds);
   updateProgressRing();
 
   if (mode === "idle") {
@@ -639,31 +701,20 @@ function updateUI() {
 }
 
 function startSelectedMusic() {
-  const selection = musicSelect.value;
-
-  if (selection === "random") {
+  if (musicSelect.value === "random") {
     startRandomSoundCycle();
     return;
   }
 
-  if (selection === "upload") return;
-
-  playSelectedManualAmbient();
+  playSelectedAudio();
 }
 
 function beginFocusSession() {
   mode = "focus";
   isPaused = false;
-
-  remainingSeconds =
-    getDurationForMode("focus");
-
-  sessionTotalSeconds =
-    remainingSeconds;
-
-  timerEndTime =
-    Date.now() +
-    remainingSeconds * 1000;
+  remainingSeconds = getDurationForMode("focus");
+  sessionTotalSeconds = remainingSeconds;
+  timerEndTime = Date.now() + remainingSeconds * 1000;
 
   suggestionEl.textContent =
     "Stay with one task until the timer ends.";
@@ -687,9 +738,7 @@ function toggleTimer() {
     if (timerEndTime !== null) {
       remainingSeconds = Math.max(
         0,
-        Math.ceil(
-          (timerEndTime - Date.now()) / 1000
-        )
+        Math.ceil((timerEndTime - Date.now()) / 1000)
       );
     }
 
@@ -711,10 +760,7 @@ function toggleTimer() {
   }
 
   isPaused = false;
-
-  timerEndTime =
-    Date.now() +
-    remainingSeconds * 1000;
+  timerEndTime = Date.now() + remainingSeconds * 1000;
 
   if (mode === "focus") {
     playFocusMusic();
@@ -737,7 +783,6 @@ function resetTimer() {
   timerEndTime = null;
 
   clearRandomSoundTimer();
-
   randomSwitchRemainingMs = null;
   randomSwitchStartedAt = null;
 
@@ -749,17 +794,13 @@ function resetTimer() {
       Number.parseInt(focusInput.value, 10) || 40
     ) * 60;
 
-  sessionTotalSeconds =
-    remainingSeconds;
-
+  sessionTotalSeconds = remainingSeconds;
   suggestionEl.textContent =
     "Choose your focus session and press Start.";
 
   setNowPlaying("None");
   setDefaultBackground();
-
   currentAmbientIndex = -1;
-
   updateUI();
 }
 
@@ -775,49 +816,30 @@ function switchMode() {
       String(sessionsCompleted)
     );
 
-    sessionsNumberEl.textContent =
-      sessionsCompleted;
+    sessionsNumberEl.textContent = sessionsCompleted;
 
     mode = "break";
-
-    remainingSeconds =
-      getDurationForMode("break");
-
-    sessionTotalSeconds =
-      remainingSeconds;
-
-    timerEndTime =
-      Date.now() +
-      remainingSeconds * 1000;
+    remainingSeconds = getDurationForMode("break");
+    sessionTotalSeconds = remainingSeconds;
+    timerEndTime = Date.now() + remainingSeconds * 1000;
 
     clearRandomSoundTimer();
-
     randomSwitchRemainingMs = null;
     randomSwitchStartedAt = null;
 
     stopAndRewindMusic();
-
     setNowPlaying("None");
     setDefaultBackground();
 
     suggestionEl.textContent =
       breakSuggestions[
-        Math.floor(
-          Math.random() * breakSuggestions.length
-        )
+        Math.floor(Math.random() * breakSuggestions.length)
       ];
   } else {
     mode = "focus";
-
-    remainingSeconds =
-      getDurationForMode("focus");
-
-    sessionTotalSeconds =
-      remainingSeconds;
-
-    timerEndTime =
-      Date.now() +
-      remainingSeconds * 1000;
+    remainingSeconds = getDurationForMode("focus");
+    sessionTotalSeconds = remainingSeconds;
+    timerEndTime = Date.now() + remainingSeconds * 1000;
 
     suggestionEl.textContent =
       "New focus round. Keep going.";
@@ -831,26 +853,18 @@ function switchMode() {
 function scheduleTick() {
   clearInterval(timerId);
 
-  if (mode === "idle" || isPaused) {
-    return;
-  }
+  if (mode === "idle" || isPaused) return;
 
   if (timerEndTime === null) {
-    timerEndTime =
-      Date.now() +
-      remainingSeconds * 1000;
+    timerEndTime = Date.now() + remainingSeconds * 1000;
   }
 
   timerId = setInterval(() => {
-    if (mode === "idle" || isPaused) {
-      return;
-    }
+    if (mode === "idle" || isPaused) return;
 
     remainingSeconds = Math.max(
       0,
-      Math.ceil(
-        (timerEndTime - Date.now()) / 1000
-      )
+      Math.ceil((timerEndTime - Date.now()) / 1000)
     );
 
     updateUI();
@@ -869,59 +883,28 @@ function scheduleTick() {
 function updateIdlePreview() {
   if (mode !== "idle") return;
 
-  const focus =
-    Number.parseInt(
-      focusInput.value,
-      10
-    );
+  const focus = Number.parseInt(focusInput.value, 10);
 
-  if (
-    Number.isFinite(focus) &&
-    focus > 0
-  ) {
-    remainingSeconds =
-      focus * 60;
-
-    sessionTotalSeconds =
-      remainingSeconds;
-
+  if (Number.isFinite(focus) && focus > 0) {
+    remainingSeconds = focus * 60;
+    sessionTotalSeconds = remainingSeconds;
     updateUI();
   }
-}
-
-function openSettings() {
-  settingsBackdrop.classList.remove("hidden");
-}
-
-function closeSettingsModal() {
-  settingsBackdrop.classList.add("hidden");
 }
 
 startBtn.addEventListener("click", toggleTimer);
 stopBtn.addEventListener("click", resetTimer);
 focusInput.addEventListener("input", updateIdlePreview);
 breakInput.addEventListener("input", updateIdlePreview);
-settingsBtn.addEventListener("click", openSettings);
-openSoundSettings.addEventListener("click", openSettings);
-closeSettings.addEventListener("click", closeSettingsModal);
-doneSettings.addEventListener("click", closeSettingsModal);
-uploadSoundBtn.addEventListener("click", openUploadDialog);
-
-settingsBackdrop.addEventListener("click", (event) => {
-  if (event.target === settingsBackdrop) {
-    closeSettingsModal();
-  }
-});
 
 switchInterval.addEventListener("input", () => {
-  switchIntervalSeconds =
-    Number.parseInt(
-      switchInterval.value,
-      10
-    );
+  switchIntervalSeconds = Number.parseInt(
+    switchInterval.value,
+    10
+  );
 
   intervalLabel.textContent =
-    `${switchIntervalSeconds}s`;
+    formatInterval(switchIntervalSeconds);
 
   localStorage.setItem(
     "focusBuddySwitchInterval",
@@ -952,7 +935,6 @@ volumeControl.addEventListener("input", () => {
 
   focusMusic.volume = volume;
   endSound.volume = volume;
-
   volumeLabel.textContent = `${value}%`;
 
   localStorage.setItem(
@@ -970,17 +952,13 @@ if (
   savedVolume >= 0 &&
   savedVolume <= 100
 ) {
-  volumeControl.value =
-    String(savedVolume);
+  volumeControl.value = String(savedVolume);
 }
 
-volumeControl.dispatchEvent(
-  new Event("input")
-);
+volumeControl.dispatchEvent(new Event("input"));
 
 document.addEventListener("keydown", (event) => {
-  const tag =
-    document.activeElement?.tagName;
+  const tag = document.activeElement?.tagName;
 
   const typing =
     tag === "INPUT" ||
@@ -989,15 +967,15 @@ document.addEventListener("keydown", (event) => {
 
   if (
     event.key === "Escape" &&
-    !settingsBackdrop.classList.contains("hidden")
+    !audioLibraryBackdrop.classList.contains("hidden")
   ) {
-    closeSettingsModal();
+    closeLibrary();
     return;
   }
 
   if (
     typing ||
-    !settingsBackdrop.classList.contains("hidden")
+    !audioLibraryBackdrop.classList.contains("hidden")
   ) {
     return;
   }
@@ -1018,7 +996,9 @@ window.addEventListener("beforeunload", () => {
   });
 });
 
-populateBuiltInSounds();
-syncCustomList();
+populateMusicSelectors();
+syncSelectors("random");
+renderAudioLibrary();
+intervalLabel.textContent = formatInterval(switchIntervalSeconds);
 setNowPlaying("None");
 updateUI();

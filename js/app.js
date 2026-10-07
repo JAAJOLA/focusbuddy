@@ -110,8 +110,8 @@ let currentBgLayer = 1;
 let customSounds = [];
 let mode = "idle";
 let timerId = null;
-let remainingSeconds = 25 * 60;
-let sessionTotalSeconds = 25 * 60;
+let remainingSeconds = 40 * 60;
+let sessionTotalSeconds = 40 * 60;
 let isPaused = false;
 let currentAmbientIndex = -1;
 
@@ -763,7 +763,7 @@ function resetTimer() {
   remainingSeconds =
     Math.max(
       1,
-      Number.parseInt(focusInput.value, 10) || 25
+      Number.parseInt(focusInput.value, 10) || 40
     ) * 60;
 
   sessionTotalSeconds =
